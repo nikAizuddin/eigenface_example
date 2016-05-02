@@ -18,17 +18,7 @@ function[] = eigenface_recognize()
     global srcImg;
     global listboxSrcImg;
     global viewportResImg1;
-    global viewportResImg2;
-    global viewportResImg3;
-    global viewportResImg4;
     global resImgName1;
-    global resImgName2;
-    global resImgName3;
-    global resImgName4;
-    global resPercentMatch1;
-    global resPercentMatch2;
-    global resPercentMatch3;
-    global resPercentMatch4;
     global is_eigenface_trained;
     global progState;
     global analysis_row0;
@@ -40,55 +30,38 @@ function[] = eigenface_recognize()
     global numOfPerson;
     global numOfFaces;
     global eigenface;
+    global numOfEigenfaces;
+    global wTrainingSet;
     global facevector;
     global imagesPerPerson;
-    global d;    d    = zeros(imagesPerPerson,numOfPerson);
-    global minD; minD = zeros(numOfPerson);
-    global percentMatched;
+    global closestPerson;
+    global d
 
     // Find weight for target image (source image or sample image)
-    targetFilename = listboxSrcImg.string(listboxSrcImg.value);
-    targetImg(:,1) = srcImg;
-    targetW        = find_weight(eigenface, ...
-        targetImg, ...
-        meanvector, ...
-        numOfFaces);
-
-    // Find weight for the training face
-    for i=1:1:numOfPerson
-        wClass(:,:,i) = find_weight_class(eigenface, ...
-            facevector, ...
-            (imagesPerPerson*(i-1))+1, ...
-            meanvector, ...
-            imagesPerPerson, ...
-            numOfFaces);
+    targetFilename = listboxSrcImg.string(listboxSrcImg.value)
+    targetImg(:,1) = srcImg
+    for i=1:1:numOfEigenfaces
+        wTarget(i) = eigenface(:,i)' * (targetImg(:,1) - meanvector)
+    end
+    
+    // Find Euclidean Distance
+    for n=1:1:numOfPerson
+        for i=1:1:imagesPerPerson
+            for j=1:1:numOfEigenfaces
+                d(j,i,n) = sqrt(sum( (wTarget(j) - wTrainingSet(j,i,n))^2 ))
+            end
+        end
     end
 
-    // Euclidean distant between target weight and class weight.
-    for i=1:1:numOfPerson
-    for j=1:1:imagesPerPerson
-        d(j,i) = ...
-            sqrt( sum( abs( (targetW(:,1)-wClass(:,j,i) ).^2 ) ) );
-    end
-    end
-
-    // NOTE:
-    //     d(1,1) represents euclidean distance between source face
-    //            weight and s1/1.pgm training face weight.
-    //     d(1,2) represents euclidean distance between source face
-    //            weight and s1/2.pgm training face weight.
-    //     d(8,3) represents euclidean distance between source face
-    //            weight and s8/3.pgm training face weight.
-
-    // Find minimum distant of person of 
-    for i=1:1:numOfPerson
-        minD(i) = min(d(:,i));
-    end
-
-    // Find the percentage of matching.
-    // The lower the distance, the higher the percentage matched.
-    for i=1:1:numOfPerson
-        percentMatched(i) = 100 - ( (minD(i)/ mean(d) ) * 100 );
+    // Find closest distance
+    closest = %inf
+    for n=1:1:numOfPerson
+        for i=1:1:imagesPerPerson
+            if (mean(d(:,i,n)) < closest)
+                closest = mean(d(:,i,n))
+                closestPerson = n
+            end
+        end
     end
 
 endfunction

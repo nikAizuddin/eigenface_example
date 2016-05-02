@@ -23,8 +23,10 @@ function[] = eigenface_train()
     global numOfPerson;
     global numOfFaces;
     global eigenface;
+    global numOfEigenfaces;
     global facevector;
     global imagesPerPerson;
+    global wTrainingSet;
 
 
     //////////////////////////////////////////////////////////////////
@@ -90,7 +92,7 @@ function[] = eigenface_train()
 
 
     //////////////////////////////////////////////////////////////////
-    // STEP 5: Find covariance matrix.
+    // STEP 5: Find covariance matrix (Matrix L).
     // Matrix L is a covariance matrix, but we use a different
     // technique to find the covariance. This technique is described
     // in TurkPentland1991a paper:
@@ -102,9 +104,23 @@ function[] = eigenface_train()
 
     //////////////////////////////////////////////////////////////////
     // STEP 6: Find eigenvalue and eigenvector of the matrix L.
+    // Using Scilab's spectral decomposition method to find
+    // eigenvalue and eigenvector.
     //////////////////////////////////////////////////////////////////
 
     [eigenvector_L, eigenvalues_L] = spec(L);
+
+    // Sort eigenvalues and eigenvector in descending order
+    [s,k] = gsort(diag(eigenvalues_L))
+    eigenvalues_L = eigenvalues_L(k,k)
+    eigenvector_L = eigenvector_L(:,k)
+
+    // Normalize the eigenvector
+    [rows, cols] = size(eigenvector_L)
+    for i=1:1:cols
+        maxVal = max(abs(eigenvector_L(:,i)))
+        eigenvector_L(:,i) = eigenvector_L(:,i) / maxVal
+    end
 
 
     //////////////////////////////////////////////////////////////////
@@ -117,56 +133,27 @@ function[] = eigenface_train()
     // of matrix L with the matrix meansubtvector.
     //////////////////////////////////////////////////////////////////
 
-    // Allocate Scilab heap memory
-    eigenface = zeros(92*112, numOfFaces);
-
+    eigenface = zeros(92*112,numOfFaces)
     for i=1:1:numOfFaces
-        eigenface(:,i)  = meansubtvector * eigenvector_L(:,i);
+        for j=1:1:numOfFaces
+            eigenface(:,i) = eigenface(:,i) + ...
+                (eigenvector_L(i,j) * meansubtvector(:,j))
+        end
+        filename = msprintf("debug/eigen_%d.pgm",i);
+        savepgm(matrix(scale_to_255(eigenface(:,i)),112,92),filename)
     end
 
-
-    //////////////////////////////////////////////////////////////////
-    // STEP 8 (Optional): Scale eigenface to 255 for display purpose.
-    // First, we have to normalized the eigenvector so that the
-    // range of the vector is within 0.0 -> 1.0.
-    // Then, we can scale it to 255 to visualize it.
-    //
-    // NOTE: During recognizing images, Scaled_eigenface[] variable
-    // is not used, it is only used for print to .pgm files only.
-    // The variable eigenface[] is used instead, for recognizing.
-    //////////////////////////////////////////////////////////////////
-
-    for i=1:1:numOfFaces
-        Scaled_eigenface(:,i) = scale_to_255(eigenface(:,i));
+    // Find weights for each person in training data set
+    numOfEigenfaces = numOfFaces - 3
+    for n=1:1:numOfPerson
+        k = 1 + ((n-1) * imagesPerPerson)
+        for i=1:1:imagesPerPerson
+            for j=1:1:numOfEigenfaces
+                wTrainingSet(j,i,n) = ...
+                    eigenface(:,j)' * (facevector(:,k) - meanvector)
+            end
+            k = k + 1
+        end
     end
-
-
-    //////////////////////////////////////////////////////////////////
-    // The Face database is now prepared. At this point, the system
-    // is now ready to recognize the face.
-    // However, lets save the result for inspection.
-    // These saved files are not used for recognizing.
-    //////////////////////////////////////////////////////////////////
-
-    // Save all images from facevector[] variable
-    for i=1:1:numOfFaces
-        filename = msprintf("debug/facevector_%d.pgm",i);
-        savepgm( facevector(:,i), filename);
-    end
-
-    // Save all images from meansubtvector[] variable
-    for i=1:1:numOfFaces
-        filename = msprintf("debug/meansubtvector_%d.pgm",i);
-        savepgm( abs(meansubtvector(:,i)), filename);
-    end
-
-    // Save all eigenface images.
-    for i=1:1:numOfFaces
-        filename = msprintf("debug/eigenface_%d.pgm",i);
-        savepgm(Scaled_eigenface(:,i), filename);
-    end
-
-    // Save the mean faces image.
-    savepgm(matrix(meanvector, 112, 92), 'debug/mean.pgm');
 
 endfunction
