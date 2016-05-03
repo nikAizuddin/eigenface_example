@@ -137,14 +137,14 @@ function[] = eigenface_train()
     for i=1:1:numOfFaces
         for j=1:1:numOfFaces
             eigenface(:,i) = eigenface(:,i) + ...
-                (eigenvector_L(i,j) * meansubtvector(:,j))
+                (eigenvector_L(j,i) * meansubtvector(:,j))
         end
         filename = msprintf("debug/eigen_%d.pgm",i);
         savepgm(matrix(scale_to_255(eigenface(:,i)),112,92),filename)
     end
 
     // Find weights for each person in training data set
-    numOfEigenfaces = numOfFaces - 3
+    numOfEigenfaces = 8
     for n=1:1:numOfPerson
         k = 1 + ((n-1) * imagesPerPerson)
         for i=1:1:imagesPerPerson
